@@ -9,7 +9,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP=/Applications/AeroSpace.app
-CLI=/opt/homebrew/Caskroom/aerospace/0.20.3-Beta/AeroSpace-v0.20.3-Beta/bin/aerospace
+# Resolve the brew CLI through the symlink rather than hardcoding the cask
+# version — otherwise this breaks every time the cask is upgraded.
+CLI=$(readlink -f /opt/homebrew/bin/aerospace)
+[ -e "$CLI" ] || { echo "Can't find the brew aerospace CLI; is the cask installed?" >&2; exit 1; }
 
 echo "==> Building (swift build; skipping the XCTest target CLT can't build)"
 ./generate.sh --ignore-xcodeproj --ignore-cmd-help
@@ -18,6 +21,10 @@ swift build
 echo "==> Stopping running AeroSpace"
 killall AeroSpace AeroSpaceApp 2>/dev/null || true
 rm -f /tmp/bobko.aerospace*.sock
+
+echo "==> Backing up stock binaries (first run only)"
+[ -e "$APP/Contents/MacOS/AeroSpace.orig.bak" ] || cp -f "$APP/Contents/MacOS/AeroSpace" "$APP/Contents/MacOS/AeroSpace.orig.bak"
+[ -e "$CLI.orig.bak" ] || cp -f "$CLI" "$CLI.orig.bak"
 
 echo "==> Installing patched app executable + CLI"
 cp -f .build/debug/AeroSpaceApp "$APP/Contents/MacOS/AeroSpace"
