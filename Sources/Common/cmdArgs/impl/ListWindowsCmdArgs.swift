@@ -187,6 +187,12 @@ public enum FormatVar: RawRepresentable, Equatable, CaseIterable, Sendable {
         case windowParentContainerId = "window-parent-container-id"
         case windowTreeDepth = "window-tree-depth"
         case windowIndexInParent = "window-index-in-parent"
+        // Full ancestor chain root->leaf, '/'-separated. Each segment:
+        //   R:<o><l>   the root tiling container (o=h|v, l=t|a)
+        //   <i>:<o><l> an intermediate/top container at child-index i
+        //   w<i>       the window leaf at child-index i
+        // Lets a consumer rebuild the exact tree (ordering + orientation).
+        case windowTreePath = "window-tree-path"
     }
 
     public enum WorkspaceFormatVar: String, Equatable, CaseIterable, Sendable {

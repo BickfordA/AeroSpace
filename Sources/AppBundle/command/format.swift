@@ -163,6 +163,7 @@ extension FormatVar {
                     case .windowParentContainerId: parentContainerIdResult(w: w.window)
                     case .windowTreeDepth: treeDepthResult(w: w.window)
                     case .windowIndexInParent: indexInParentResult(w: w.window)
+                    case .windowTreePath: treePathResult(w: w.window)
                 }
             case (.workspace(let w), .workspace(let f)):
                 return switch f {
@@ -274,6 +275,49 @@ private func toLayoutString(tc: TilingContainer) -> String {
         return .failure(.notPossible("Window not found among its parent's children"))
     }
     return .success(.int(idx))
+}
+
+/// Compact orientation+layout code for a tiling container, e.g. "ht" / "va".
+private func shortLayout(_ tc: TilingContainer) -> String {
+    let o = tc.orientation == .h ? "h" : "v"
+    let l = tc.layout == .tiles ? "t" : "a"
+    return o + l
+}
+
+/// Full ancestor chain from the root tiling container down to the window.
+/// See the enum comment for the segment grammar.
+@MainActor private func treePathResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
+    guard let parent = w.parent else { return .failure(.nullParent("NULL-PARENT")) }
+    var segments: [String] = []
+
+    // Window leaf: its index within the immediate parent.
+    guard let widx = parent.children.firstIndex(where: { $0 === w }) else {
+        return .failure(.notPossible("Window not found among its parent's children"))
+    }
+    segments.append("w\(widx)")
+
+    // Climb through containers up to (and including) the root tiling container.
+    var node: TreeNode = parent
+    while let p = node.parent {
+        if p is Workspace {
+            // node is the root tiling container (or a shim for floating/etc.)
+            if let tc = node as? TilingContainer {
+                segments.append("R:\(shortLayout(tc))")
+            } else {
+                segments.append("R:xx")
+            }
+            break
+        }
+        let idx = p.children.firstIndex(where: { $0 === node }) ?? -1
+        if let tc = node as? TilingContainer {
+            segments.append("\(idx):\(shortLayout(tc))")
+        } else {
+            segments.append("\(idx):xx")
+        }
+        node = p
+    }
+
+    return .success(.string(segments.reversed().joined(separator: "/")))
 }
 
 private func toLayoutResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
