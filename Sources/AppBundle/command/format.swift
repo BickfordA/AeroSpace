@@ -160,6 +160,9 @@ extension FormatVar {
                     case .windowIsFullscreen: .success(.bool(w.window.isFullscreen))
                     case .windowTitle: .success(.string(w.title.orDie("Title wasn't prefetched")))
                     case .windowLayout, .windowParentContainerLayout: toLayoutResult(w: w.window)
+                    case .windowParentContainerId: parentContainerIdResult(w: w.window)
+                    case .windowTreeDepth: treeDepthResult(w: w.window)
+                    case .windowIndexInParent: indexInParentResult(w: w.window)
                 }
             case (.workspace(let w), .workspace(let f)):
                 return switch f {
@@ -241,6 +244,36 @@ private func toLayoutString(tc: TilingContainer) -> String {
         case (.accordion, .h): return LayoutCmdArgs.LayoutDescription.h_accordion.rawValue
         case (.accordion, .v): return LayoutCmdArgs.LayoutDescription.v_accordion.rawValue
     }
+}
+
+// Tree-structure helpers (fork addition).
+
+/// A per-session-stable id for the window's parent container. Two sibling
+/// containers of the same layout get distinct ids, which lets a status bar
+/// tell adjacent stacks apart when reconstructing the tree.
+@MainActor private func parentContainerIdResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
+    guard let parent = w.parent else { return .failure(.nullParent("NULL-PARENT")) }
+    return .success(.int(ObjectIdentifier(parent).hashValue))
+}
+
+/// Depth of the window in the tree: number of ancestor nodes up to the root.
+@MainActor private func treeDepthResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
+    var depth = 0
+    var cur: TreeNode? = w.parent
+    while let node = cur {
+        depth += 1
+        cur = node.parent
+    }
+    return .success(.int(depth))
+}
+
+/// Zero-based position of the window among its parent's children (tree order).
+@MainActor private func indexInParentResult(w: Window) -> Result<Primitive, InterVarExpansionError> {
+    guard let parent = w.parent else { return .failure(.nullParent("NULL-PARENT")) }
+    guard let idx = parent.children.firstIndex(where: { $0 === w }) else {
+        return .failure(.notPossible("Window not found among its parent's children"))
+    }
+    return .success(.int(idx))
 }
 
 private func toLayoutResult(w: Window) -> Result<Primitive, InterVarExpansionError> {

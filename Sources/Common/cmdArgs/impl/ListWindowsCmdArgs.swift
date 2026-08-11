@@ -182,6 +182,11 @@ public enum FormatVar: RawRepresentable, Equatable, CaseIterable, Sendable {
         case windowTitle = "window-title"
         case windowLayout = "window-layout" // An alias for windowParentContainerLayout
         case windowParentContainerLayout = "window-parent-container-layout"
+        // Tree-structure fields (fork addition) used to reconstruct the full
+        // container tree from the flat window list, e.g. in a status bar.
+        case windowParentContainerId = "window-parent-container-id"
+        case windowTreeDepth = "window-tree-depth"
+        case windowIndexInParent = "window-index-in-parent"
     }
 
     public enum WorkspaceFormatVar: String, Equatable, CaseIterable, Sendable {
