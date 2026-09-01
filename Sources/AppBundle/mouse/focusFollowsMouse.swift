@@ -39,6 +39,24 @@ import AppKit
                     break
                 }
             }
+            // Fork addition: if the pointer is still inside the window that
+            // already has focus, leave focus alone.
+            //
+            // With `accordion-padding = 0` every window in a stack shares one
+            // rect, so a point matches all of them and findWindowRecursively
+            // below returns whichever comes first in tree order — not the one
+            // actually visible. Moving the mouse *within* the visible window
+            // then yanked focus to a hidden sibling, which raised and buried
+            // the window under the cursor.
+            //
+            // Deliberately placed after the floating lookup, so a floating
+            // window over the focused one still wins the pointer.
+            if window == nil, let focused = focus.windowOrNil {
+                try checkCancellation()
+                if let rect = try await focused.getAxRect(.cancellable), rect.contains(location) {
+                    return
+                }
+            }
             if window == nil {
                 window = location.findWindowRecursively(in: workspace.rootTilingContainer, virtual: false, fullscreenCoversAll: true)
             }
